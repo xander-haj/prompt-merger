@@ -228,20 +228,21 @@
     <div class="container">
         <div class="toggle-container">
             <label class="toggle-switch">
-                <input type="checkbox" id="mode-toggle">
+                <input type="checkbox" id="mode-toggle" aria-label="Toggle Dark/Light Mode">
                 <span class="slider"></span>
             </label>
         </div>
         <h1>Customizable Prompt Formatter</h1>
         <div class="form-group">
             <label for="template">Prompt Template:</label>
-            <textarea id="template" placeholder="Enter your prompt template here...">
+            <textarea id="template" aria-label="Prompt Template" placeholder="Enter your prompt template here...">
 <|endoftext|>You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions.
 
 ### Instruction
-{prompt}
+Provide assistance with coding tasks.
 
 ### Response
+Sure, how can I assist you today?
             </textarea>
         </div>
         <button class="btn" id="load-template-btn">Load Template</button>
@@ -275,70 +276,90 @@
 
             // Automatically load input fields based on the default template
             const template = document.getElementById('template').value.trim();
-            const placeholders = parseTemplate(template);
-            if (placeholders.length > 0) {
-                generateInputFields(placeholders);
-            }
+            processTemplate(template);
         });
 
         /**
-         * Predefined Order for Placeholders
-         * Adjust this array based on the desired order of input fields.
+         * Predefined Sections to Detect and Replace with Placeholders
          */
-        const predefinedOrder = ['PREFIX', 'endoftext', 'Instruction', 'Response', 'SUFFIX', 'INST', 'prompt'];
+        const predefinedSections = [
+            {
+                marker: /^<\|endoftext\|>/, // Regex to match <|endoftext|> at the start of the line
+                placeholder: 'endoftext'
+            },
+            {
+                marker: /^###\s*Instruction/, // Regex to match ### Instruction
+                placeholder: 'Instruction'
+            },
+            {
+                marker: /^###\s*Response/, // Regex to match ### Response
+                placeholder: 'Response'
+            }
+        ];
 
         /**
-         * Mapping of Placeholders to Their Formatting in the Merged Output
-         * Adjust this object based on the desired formatting.
-         */
-        const placeholderFormats = {
-            'endoftext': '<|endoftext|>{input}',
-            'Instruction': '### Instruction\n{input}',
-            'Response': '### Response\n{input}',
-            'PREFIX': '[PREFIX]{input}[/PREFIX]',
-            'SUFFIX': '[SUFFIX]{input}[/SUFFIX]',
-            'INST': '[INST]{input}[/INST]',
-            'prompt': '{input}'
-        };
-
-        /**
-         * Function to parse placeholders in the template.
-         * Supports multiple placeholder formats:
-         * - <|placeholder|>
-         * - ### Placeholder
-         * - [placeholder]
-         * - <placeholder>
-         * - {placeholder}
+         * Function to process the template:
+         * - Detect predefined sections.
+         * - Replace their content with placeholders if not already placeholders.
+         * - Generate input fields accordingly.
          * @param {string} template - The prompt template string.
-         * @returns {Array} - Array of unique placeholder names.
          */
-        function parseTemplate(template) {
-            const placeholderPatterns = [
-                /<\|(\w+)\|>/g,          // Matches <|placeholder|>
-                /###\s*(\w+)/g,          // Matches ### Placeholder
-                /\[(\w+)\]/g,            // Matches [placeholder]
-                /<(\w+)>/g,              // Matches <placeholder>
-                /\{(\w+)\}/g              // Matches {placeholder}
-            ];
+        function processTemplate(template) {
+            if (!validateTemplate(template)) {
+                alert('Template has mismatched brackets. Please correct them before loading.');
+                return;
+            }
 
-            const placeholders = new Set();
+            const lines = template.split('\n');
+            let modifiedTemplate = '';
+            const detectedPlaceholders = [];
 
-            placeholderPatterns.forEach(pattern => {
-                let match;
-                while ((match = pattern.exec(template)) !== null) {
-                    placeholders.add(match[1]);
+            lines.forEach(line => {
+                let replaced = false;
+                for (let section of predefinedSections) {
+                    if (section.marker.test(line)) {
+                        // Check if the line already contains a placeholder
+                        const placeholderRegex = new RegExp(`\\{${section.placeholder}\\}`);
+                        if (!placeholderRegex.test(line)) {
+                            // Replace the content after the marker with the placeholder
+                            let newLine = line.replace(section.marker, `$1{${section.placeholder}}`);
+                            // Depending on the marker type, adjust the replacement
+                            if (section.placeholder === 'endoftext') {
+                                // Replace everything after the marker with the placeholder
+                                newLine = line.split('>')[0] + `>{${section.placeholder}}`;
+                            } else {
+                                // For ### Instruction and ### Response
+                                newLine = `### ${section.placeholder}\n{${section.placeholder}}`;
+                            }
+                            modifiedTemplate += newLine + '\n';
+                        } else {
+                            // Placeholder already exists, keep the line as is
+                            modifiedTemplate += line + '\n';
+                        }
+                        detectedPlaceholders.push(section.placeholder);
+                        replaced = true;
+                        break;
+                    }
+                }
+                if (!replaced) {
+                    // If the line does not match any predefined section, skip it
+                    // This ensures that fixed explanatory text is excluded from the output
                 }
             });
 
-            // Sort placeholders based on predefinedOrder
-            return Array.from(placeholders).sort((a, b) => {
-                const indexA = predefinedOrder.indexOf(a);
-                const indexB = predefinedOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
+            // Update the template textarea with the modified template containing placeholders
+            document.getElementById('template').value = modifiedTemplate.trim();
+
+            // Generate input fields based on detected placeholders
+            if (detectedPlaceholders.length > 0) {
+                generateInputFields(detectedPlaceholders);
+                document.querySelector('.output-group').style.display = 'none';
+            } else {
+                alert('No predefined sections found in the template. The entire template will be treated as fixed.');
+                // Treat the entire template as fixed and display it as output
+                document.getElementById('merge-btn').style.display = 'block';
+                document.querySelector('.output-group').style.display = 'none';
+            }
         }
 
         /**
@@ -379,7 +400,7 @@
                 else if (char === '>' || char === ']' || char === '}' || char === '|') {
                     if (char === '|') {
                         // Look for closing '|>' for <| |>
-                        if (template[i +1] === '>') {
+                        if (template[i + 1] === '>') {
                             const last = stack.pop();
                             if (last !== '<|') {
                                 return false;
@@ -456,24 +477,7 @@
         // Load Template Button Event
         document.getElementById('load-template-btn').addEventListener('click', () => {
             const template = document.getElementById('template').value.trim();
-            if (!template) {
-                alert('Please enter a prompt template.');
-                return;
-            }
-
-            if (!validateTemplate(template)) {
-                alert('Template has mismatched brackets. Please correct them before loading.');
-                return;
-            }
-
-            const placeholders = parseTemplate(template);
-            if (placeholders.length === 0) {
-                alert('No placeholders found in the template. Please ensure placeholders are in <|placeholder|>, ### Placeholder, [placeholder], <placeholder>, or {placeholder} formats.');
-                document.getElementById('merge-btn').style.display = 'none';
-            } else {
-                generateInputFields(placeholders);
-                document.querySelector('.output-group').style.display = 'none';
-            }
+            processTemplate(template);
         });
 
         // Merge Button Event
@@ -484,43 +488,50 @@
                 return;
             }
 
-            const placeholders = parseTemplate(template);
-            if (placeholders.length === 0) {
-                alert('No placeholders to merge.');
-                return;
-            }
+            const placeholders = extractPlaceholders(template);
+            let mergedPrompt = template;
 
-            const mergedPromptParts = [];
-
-            // Iterate through predefinedOrder to maintain sequence
-            predefinedOrder.forEach(placeholder => {
-                if (placeholders.includes(placeholder)) {
-                    const inputElement = document.getElementById(placeholder);
-                    if (inputElement) {
-                        const value = inputElement.value.trim();
-                        if (!value) {
-                            alert(`Please enter a value for "${placeholder}".`);
-                            return;
-                        }
-
-                        const formatString = placeholderFormats[placeholder];
-                        if (formatString) {
-                            const formatted = formatString.replace('{input}', value);
-                            mergedPromptParts.push(formatted);
-                        } else {
-                            // If no specific format, just add the input
-                            mergedPromptParts.push(value);
-                        }
+            placeholders.forEach(placeholder => {
+                const inputElement = document.getElementById(placeholder);
+                if (inputElement) {
+                    const userInput = inputElement.value.trim();
+                    if (!userInput) {
+                        alert(`Please enter a value for "${placeholder}".`);
+                        throw new Error(`Empty input for "${placeholder}"`);
                     }
+
+                    // Replace all instances of the placeholder with user input
+                    const regex = new RegExp(`\\{${placeholder}\\}`, 'g');
+                    mergedPrompt = mergedPrompt.replace(regex, userInput);
                 }
             });
 
-            // Join all parts with appropriate spacing or line breaks
-            const mergedPrompt = mergedPromptParts.join('\n');
-
+            // Display the merged prompt
             document.getElementById('output').textContent = mergedPrompt;
             document.querySelector('.output-group').style.display = 'block';
         });
+
+        /**
+         * Function to extract placeholders from the template.
+         * @param {string} template - The prompt template string.
+         * @returns {Array} - Array of placeholder names.
+         */
+        function extractPlaceholders(template) {
+            const placeholderPatterns = [
+                /\{(\w+)\}/g // Matches {placeholder}
+            ];
+
+            const placeholders = new Set();
+
+            placeholderPatterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(template)) !== null) {
+                    placeholders.add(match[1]);
+                }
+            });
+
+            return Array.from(placeholders);
+        }
 
         // Copy to Clipboard Functionality
         document.getElementById('copy-btn').addEventListener('click', () => {
