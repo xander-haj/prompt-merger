@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prompt Formatter Tool</title>
+    <title>Customizable Prompt Formatter Tool</title>
     <style>
         /* CSS Reset */
         *, *::before, *::after {
@@ -29,7 +29,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            max-width: 500px;
+            max-width: 800px;
             width: 100%;
         }
 
@@ -39,84 +39,6 @@
             font-size: 1.8em;
         }
 
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            border: none;
-            resize: vertical;
-            background-color: #2c2c2c;
-            color: #ffffff;
-            font-size: 1em;
-            height: 80px;
-            transition: background-color 0.3s, color 0.3s;
-        }
-
-        textarea:focus {
-            outline: none;
-            background-color: #3a3a3a;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 12px;
-            background-color: #6200ea;
-            border: none;
-            border-radius: 25px;
-            color: #ffffff;
-            font-size: 1em;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            margin-top: 10px;
-        }
-
-        .btn:hover {
-            background-color: #3700b3;
-        }
-
-        .output-group {
-            margin-top: 20px;
-        }
-
-        .output-box {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
-            background-color: #2c2c2c;
-            color: #ffffff;
-            font-size: 1em;
-            min-height: 100px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        .copy-btn {
-            margin-top: 10px;
-            padding: 10px 20px;
-            background-color: #03dac6;
-            border: none;
-            border-radius: 20px;
-            color: #000000;
-            font-size: 1em;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .copy-btn:hover {
-            background-color: #018786;
-        }
-
-        /* Dark Mode Toggle */
         .toggle-container {
             display: flex;
             justify-content: flex-end;
@@ -179,21 +101,21 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
-        body.light-mode textarea {
+        body.light-mode textarea, body.light-mode input[type="text"] {
             background-color: #e0e0e0;
             color: #000000;
         }
 
-        body.light-mode textarea:focus {
+        body.light-mode textarea:focus, body.light-mode input[type="text"]:focus {
             background-color: #d5d5d5;
         }
 
-        body.light-mode .btn {
+        body.light-mode .btn, body.light-mode .copy-btn {
             background-color: #6200ea;
             color: #ffffff;
         }
 
-        body.light-mode .btn:hover {
+        body.light-mode .btn:hover, body.light-mode .copy-btn:hover {
             background-color: #3700b3;
         }
 
@@ -213,6 +135,93 @@
         body.light-mode input:checked + .slider {
             background-color: #6200ea;
         }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        textarea, input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            resize: vertical;
+            background-color: #2c2c2c;
+            color: #ffffff;
+            font-size: 1em;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            outline: none;
+            background-color: #3a3a3a;
+        }
+
+        .btn, .copy-btn {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: #6200ea;
+            border: none;
+            border-radius: 25px;
+            color: #ffffff;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .btn:hover, .copy-btn:hover {
+            background-color: #3700b3;
+        }
+
+        .copy-btn {
+            background-color: #03dac6;
+            color: #000000;
+        }
+
+        .copy-btn:hover {
+            background-color: #018786;
+        }
+
+        .output-group {
+            margin-top: 20px;
+        }
+
+        .output-box {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #2c2c2c;
+            color: #ffffff;
+            font-size: 1em;
+            min-height: 100px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin-top: 10px;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.5em;
+            }
+
+            .btn, .copy-btn {
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -223,21 +232,21 @@
                 <span class="slider"></span>
             </label>
         </div>
-        <h1>Prompt Formatter</h1>
-        <div class="input-group">
-            <label for="prefix">Prefix:</label>
-            <textarea id="prefix" placeholder="Enter prefix here..."></textarea>
+        <h1>Customizable Prompt Formatter</h1>
+        <div class="form-group">
+            <label for="template">Prompt Template:</label>
+            <textarea id="template" placeholder="Enter your prompt template here...">
+<s>[PREFIX] {prefix} [/PREFIX]
+[INST] {instruction} [/INST]
+[SUFFIX] {suffix} [/SUFFIX]</s>
+            </textarea>
         </div>
-        <div class="input-group">
-            <label for="instruction">Instruction:</label>
-            <textarea id="instruction" placeholder="Enter instruction here..."></textarea>
-        </div>
-        <div class="input-group">
-            <label for="suffix">Suffix:</label>
-            <textarea id="suffix" placeholder="Enter suffix here..."></textarea>
-        </div>
-        <button class="btn" id="merge-btn">Merge Prompt</button>
-        <div class="output-group">
+        <button class="btn" id="load-template-btn">Load Template</button>
+        <form id="input-form">
+            <!-- Dynamic Input Fields Will Appear Here -->
+        </form>
+        <button class="btn" id="merge-btn" style="display:none;">Merge Prompt</button>
+        <div class="output-group" style="display:none;">
             <label for="output">Output:</label>
             <div class="output-box" id="output" readonly></div>
             <button class="copy-btn" id="copy-btn">Copy to Clipboard</button>
@@ -251,27 +260,96 @@
             document.body.classList.toggle('light-mode');
         });
 
-        // Merge Functionality
+        // Function to parse placeholders in the template
+        function parseTemplate(template) {
+            const placeholderRegex = /{(\w+)}/g;
+            let match;
+            const placeholders = new Set();
+
+            while ((match = placeholderRegex.exec(template)) !== null) {
+                placeholders.add(match[1]);
+            }
+
+            return Array.from(placeholders);
+        }
+
+        // Function to generate input fields based on placeholders
+        function generateInputFields(placeholders) {
+            const form = document.getElementById('input-form');
+            form.innerHTML = ''; // Clear existing fields
+
+            placeholders.forEach(placeholder => {
+                const div = document.createElement('div');
+                div.className = 'form-group';
+
+                const label = document.createElement('label');
+                label.setAttribute('for', placeholder);
+                label.textContent = `${capitalizeFirstLetter(placeholder)}:`;
+
+                let input;
+                if (placeholder === 'template') {
+                    // If there's a 'template' placeholder, use textarea
+                    input = document.createElement('textarea');
+                    input.rows = 4;
+                    input.placeholder = `Enter ${placeholder} here...`;
+                } else {
+                    input = document.createElement('input');
+                    input.type = 'text';
+                    input.placeholder = `Enter ${placeholder} here...`;
+                }
+
+                input.id = placeholder;
+                input.name = placeholder;
+
+                div.appendChild(label);
+                div.appendChild(input);
+                form.appendChild(div);
+            });
+
+            if (placeholders.length > 0) {
+                document.getElementById('merge-btn').style.display = 'block';
+            } else {
+                document.getElementById('merge-btn').style.display = 'none';
+            }
+        }
+
+        // Helper function to capitalize first letter
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+
+        // Load Template Button Event
+        document.getElementById('load-template-btn').addEventListener('click', () => {
+            const template = document.getElementById('template').value.trim();
+            if (!template) {
+                alert('Please enter a prompt template.');
+                return;
+            }
+
+            const placeholders = parseTemplate(template);
+            generateInputFields(placeholders);
+            document.querySelector('.output-group').style.display = 'none';
+        });
+
+        // Merge Button Event
         document.getElementById('merge-btn').addEventListener('click', () => {
-            const prefix = document.getElementById('prefix').value.trim();
-            const instruction = document.getElementById('instruction').value.trim();
-            const suffix = document.getElementById('suffix').value.trim();
-
-            let formattedPrompt = '<s>';
-
-            if (prefix) {
-                formattedPrompt += `[PREFIX] ${prefix} [/PREFIX]\n`;
+            const template = document.getElementById('template').value.trim();
+            if (!template) {
+                alert('Prompt template is empty.');
+                return;
             }
 
-            formattedPrompt += `[INST] ${instruction} [/INST]`;
+            const placeholders = parseTemplate(template);
+            let mergedPrompt = template;
 
-            if (suffix) {
-                formattedPrompt += `\n[SUFFIX] ${suffix} [/SUFFIX]`;
-            }
+            placeholders.forEach(placeholder => {
+                const value = document.getElementById(placeholder).value.trim();
+                const regex = new RegExp(`{${placeholder}}`, 'g');
+                mergedPrompt = mergedPrompt.replace(regex, value);
+            });
 
-            formattedPrompt += '</s>';
-
-            document.getElementById('output').textContent = formattedPrompt;
+            document.getElementById('output').textContent = mergedPrompt;
+            document.querySelector('.output-group').style.display = 'block';
         });
 
         // Copy to Clipboard Functionality
@@ -286,6 +364,13 @@
             } else {
                 alert('Nothing to copy!');
             }
+        });
+
+        // Automatically load input fields on initial page load based on default template
+        window.addEventListener('DOMContentLoaded', () => {
+            const template = document.getElementById('template').value.trim();
+            const placeholders = parseTemplate(template);
+            generateInputFields(placeholders);
         });
     </script>
 </body>
