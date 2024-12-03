@@ -280,6 +280,22 @@ Sure, how can I assist you today?
         });
 
         /**
+         * Predefined Order for Placeholders
+         * Adjust this array based on the desired order of output.
+         */
+        const predefinedOrder = ['PREFIX', 'INST', 'SUFFIX'];
+
+        /**
+         * Mapping of Placeholders to Their Formatting in the Merged Output
+         * Adjust this object based on the desired formatting.
+         */
+        const placeholderFormats = {
+            'PREFIX': '[PREFIX]{input}[/PREFIX]',
+            'INST': '[INST]{input}[/INST]',
+            'SUFFIX': '[SUFFIX]{input}[/SUFFIX]'
+        };
+
+        /**
          * Predefined Sections to Detect and Replace with Placeholders
          */
         const predefinedSections = [
@@ -321,17 +337,20 @@ Sure, how can I assist you today?
                         // Check if the line already contains a placeholder
                         const placeholderRegex = new RegExp(`\\{${section.placeholder}\\}`);
                         if (!placeholderRegex.test(line)) {
-                            // Replace the content after the marker with the placeholder
-                            let newLine = line.replace(section.marker, `$1{${section.placeholder}}`);
-                            // Depending on the marker type, adjust the replacement
                             if (section.placeholder === 'endoftext') {
-                                // Replace everything after the marker with the placeholder
-                                newLine = line.split('>')[0] + `>{${section.placeholder}}`;
+                                // Replace content after <|endoftext|> with {endoftext}
+                                const parts = line.split('>');
+                                if (parts.length > 1) {
+                                    modifiedTemplate += `${parts[0]}>${'{'+section.placeholder+'}'}` + '\n';
+                                } else {
+                                    // Edge case: no content after >
+                                    modifiedTemplate += `${line.split('>')[0]}>${'{'+section.placeholder+'}'}` + '\n';
+                                }
                             } else {
                                 // For ### Instruction and ### Response
-                                newLine = `### ${section.placeholder}\n{${section.placeholder}}`;
+                                // Replace the line with the marker and placeholder
+                                modifiedTemplate += `### ${section.placeholder}\n{${section.placeholder}}` + '\n';
                             }
-                            modifiedTemplate += newLine + '\n';
                         } else {
                             // Placeholder already exists, keep the line as is
                             modifiedTemplate += line + '\n';
@@ -428,6 +447,16 @@ Sure, how can I assist you today?
             const form = document.getElementById('input-form');
             form.innerHTML = ''; // Clear existing fields
 
+            // Sort placeholders based on predefinedOrder
+            placeholders.sort((a, b) => {
+                const indexA = predefinedOrder.indexOf(a);
+                const indexB = predefinedOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
+
             placeholders.forEach(placeholder => {
                 const div = document.createElement('div');
                 div.className = 'form-group';
@@ -440,9 +469,13 @@ Sure, how can I assist you today?
                 // Determine input type based on placeholder name
                 if (placeholder.toLowerCase().includes('instruction') || 
                     placeholder.toLowerCase().includes('response') || 
-                    placeholder.toLowerCase().includes('prompt')) {
+                    placeholder.toLowerCase().includes('prompt') ||
+                    placeholder.toLowerCase().includes('inst') ||
+                    placeholder.toLowerCase().includes('prefix') ||
+                    placeholder.toLowerCase().includes('suffix') ||
+                    placeholder.toLowerCase().includes('endoftext')) {
                     input = document.createElement('textarea');
-                    input.rows = 4;
+                    input.rows = 2;
                     input.placeholder = `Enter ${placeholder} here...`;
                 } else {
                     input = document.createElement('input');
@@ -489,8 +522,15 @@ Sure, how can I assist you today?
             }
 
             const placeholders = extractPlaceholders(template);
-            let mergedPrompt = template;
+            if (placeholders.length === 0) {
+                // No placeholders detected, treat entire template as fixed
+                document.getElementById('output').textContent = template;
+                document.querySelector('.output-group').style.display = 'block';
+                return;
+            }
 
+            // Create a mapping of placeholders to user inputs
+            const userInputs = {};
             placeholders.forEach(placeholder => {
                 const inputElement = document.getElementById(placeholder);
                 if (inputElement) {
@@ -499,15 +539,25 @@ Sure, how can I assist you today?
                         alert(`Please enter a value for "${placeholder}".`);
                         throw new Error(`Empty input for "${placeholder}"`);
                     }
-
-                    // Replace all instances of the placeholder with user input
-                    const regex = new RegExp(`\\{${placeholder}\\}`, 'g');
-                    mergedPrompt = mergedPrompt.replace(regex, userInput);
+                    userInputs[placeholder] = userInput;
                 }
             });
 
-            // Display the merged prompt
-            document.getElementById('output').textContent = mergedPrompt;
+            // Assemble the merged output in the predefined order
+            const mergedOutputParts = [];
+
+            predefinedOrder.forEach(placeholder => {
+                if (userInputs.hasOwnProperty(placeholder)) {
+                    const format = placeholderFormats[placeholder];
+                    if (format) {
+                        const formatted = format.replace('{input}', userInputs[placeholder]);
+                        mergedOutputParts.push(formatted);
+                    }
+                }
+            });
+
+            const mergedOutput = mergedOutputParts.join('\n');
+            document.getElementById('output').textContent = mergedOutput;
             document.querySelector('.output-group').style.display = 'block';
         });
 
