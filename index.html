@@ -236,10 +236,12 @@
         <div class="form-group">
             <label for="template">Prompt Template:</label>
             <textarea id="template" placeholder="Enter your prompt template here...">
-<s>[INST] [prompt] [/INST]</s>
-This model also supports the following FIM tokens:
+<|endoftext|>You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions.
 
-[PREFIX], [SUFFIX]
+### Instruction
+{prompt}
+
+### Response
             </textarea>
         </div>
         <button class="btn" id="load-template-btn">Load Template</button>
@@ -280,12 +282,33 @@ This model also supports the following FIM tokens:
         });
 
         /**
+         * Predefined Order for Placeholders
+         * Adjust this array based on the desired order of input fields.
+         */
+        const predefinedOrder = ['PREFIX', 'endoftext', 'Instruction', 'Response', 'SUFFIX', 'INST', 'prompt'];
+
+        /**
+         * Mapping of Placeholders to Their Formatting in the Merged Output
+         * Adjust this object based on the desired formatting.
+         */
+        const placeholderFormats = {
+            'endoftext': '<|endoftext|>{input}',
+            'Instruction': '### Instruction\n{input}',
+            'Response': '### Response\n{input}',
+            'PREFIX': '[PREFIX]{input}[/PREFIX]',
+            'SUFFIX': '[SUFFIX]{input}[/SUFFIX]',
+            'INST': '[INST]{input}[/INST]',
+            'prompt': '{input}'
+        };
+
+        /**
          * Function to parse placeholders in the template.
          * Supports multiple placeholder formats:
          * - <|placeholder|>
          * - ### Placeholder
          * - [placeholder]
          * - <placeholder>
+         * - {placeholder}
          * @param {string} template - The prompt template string.
          * @returns {Array} - Array of unique placeholder names.
          */
@@ -294,8 +317,8 @@ This model also supports the following FIM tokens:
                 /<\|(\w+)\|>/g,          // Matches <|placeholder|>
                 /###\s*(\w+)/g,          // Matches ### Placeholder
                 /\[(\w+)\]/g,            // Matches [placeholder]
-                /<(\w+)>/g                // Matches <placeholder>
-                // Add more patterns here if needed
+                /<(\w+)>/g,              // Matches <placeholder>
+                /\{(\w+)\}/g              // Matches {placeholder}
             ];
 
             const placeholders = new Set();
@@ -307,12 +330,20 @@ This model also supports the following FIM tokens:
                 }
             });
 
-            return Array.from(placeholders);
+            // Sort placeholders based on predefinedOrder
+            return Array.from(placeholders).sort((a, b) => {
+                const indexA = predefinedOrder.indexOf(a);
+                const indexB = predefinedOrder.indexOf(b);
+                if (indexA === -1 && indexB === -1) return 0;
+                if (indexA === -1) return 1;
+                if (indexB === -1) return -1;
+                return indexA - indexB;
+            });
         }
 
         /**
          * Function to validate that all brackets in the template are properly closed.
-         * Supports <| |>, <>, and [].
+         * Supports <| |>, <>, [], and {}.
          * @param {string} template - The prompt template string.
          * @returns {boolean} - True if valid, false otherwise.
          */
@@ -321,7 +352,8 @@ This model also supports the following FIM tokens:
             const brackets = {
                 '<|': '|>',
                 '<': '>',
-                '[': ']'
+                '[': ']',
+                '{': '}'
             };
 
             for (let i = 0; i < template.length; i++) {
@@ -339,8 +371,12 @@ This model also supports the following FIM tokens:
                 else if (char === '[') {
                     stack.push('[');
                 }
+                // Handle { and }
+                else if (char === '{') {
+                    stack.push('{');
+                }
                 // Handle closing brackets
-                else if (char === '>' || char === ']' || char === '|') {
+                else if (char === '>' || char === ']' || char === '}' || char === '|') {
                     if (char === '|') {
                         // Look for closing '|>' for <| |>
                         if (template[i +1] === '>') {
@@ -364,28 +400,12 @@ This model also supports the following FIM tokens:
         }
 
         /**
-         * Predefined Order for Placeholders
-         * Adjust this array based on the desired order of input fields.
-         */
-        const predefinedOrder = ['PREFIX', 'INST', 'SUFFIX', 'endoftext', 'Instruction', 'Response'];
-
-        /**
          * Function to generate input fields based on detected placeholders.
          * @param {Array} placeholders - Array of placeholder names.
          */
         function generateInputFields(placeholders) {
             const form = document.getElementById('input-form');
             form.innerHTML = ''; // Clear existing fields
-
-            // Sort placeholders based on predefinedOrder
-            placeholders.sort((a, b) => {
-                const indexA = predefinedOrder.indexOf(a);
-                const indexB = predefinedOrder.indexOf(b);
-                if (indexA === -1 && indexB === -1) return 0;
-                if (indexA === -1) return 1;
-                if (indexB === -1) return -1;
-                return indexA - indexB;
-            });
 
             placeholders.forEach(placeholder => {
                 const div = document.createElement('div');
@@ -448,7 +468,7 @@ This model also supports the following FIM tokens:
 
             const placeholders = parseTemplate(template);
             if (placeholders.length === 0) {
-                alert('No placeholders found in the template. Please ensure placeholders are in <|placeholder|>, ### Placeholder, [placeholder], or <placeholder> formats.');
+                alert('No placeholders found in the template. Please ensure placeholders are in <|placeholder|>, ### Placeholder, [placeholder], <placeholder>, or {placeholder} formats.');
                 document.getElementById('merge-btn').style.display = 'none';
             } else {
                 generateInputFields(placeholders);
@@ -465,30 +485,38 @@ This model also supports the following FIM tokens:
             }
 
             const placeholders = parseTemplate(template);
-            let mergedPrompt = template;
-
-            for (let placeholder of placeholders) {
-                const inputElement = document.getElementById(placeholder);
-                if (inputElement) {
-                    const value = inputElement.value.trim();
-                    if (!value) {
-                        alert(`Please enter a value for "${placeholder}".`);
-                        return;
-                    }
-
-                    // Create regex patterns for each placeholder format
-                    const regexAnglePipe = new RegExp(`<\\|${placeholder}\\|>`, 'g');
-                    const regexHash = new RegExp(`###\\s*${placeholder}`, 'g');
-                    const regexSquare = new RegExp(`\\[${placeholder}\\]`, 'g');
-                    const regexAngle = new RegExp(`<${placeholder}>`, 'g');
-
-                    // Replace all instances of each placeholder format with the input value
-                    mergedPrompt = mergedPrompt.replace(regexAnglePipe, value);
-                    mergedPrompt = mergedPrompt.replace(regexHash, value);
-                    mergedPrompt = mergedPrompt.replace(regexSquare, value);
-                    mergedPrompt = mergedPrompt.replace(regexAngle, value);
-                }
+            if (placeholders.length === 0) {
+                alert('No placeholders to merge.');
+                return;
             }
+
+            const mergedPromptParts = [];
+
+            // Iterate through predefinedOrder to maintain sequence
+            predefinedOrder.forEach(placeholder => {
+                if (placeholders.includes(placeholder)) {
+                    const inputElement = document.getElementById(placeholder);
+                    if (inputElement) {
+                        const value = inputElement.value.trim();
+                        if (!value) {
+                            alert(`Please enter a value for "${placeholder}".`);
+                            return;
+                        }
+
+                        const formatString = placeholderFormats[placeholder];
+                        if (formatString) {
+                            const formatted = formatString.replace('{input}', value);
+                            mergedPromptParts.push(formatted);
+                        } else {
+                            // If no specific format, just add the input
+                            mergedPromptParts.push(value);
+                        }
+                    }
+                }
+            });
+
+            // Join all parts with appropriate spacing or line breaks
+            const mergedPrompt = mergedPromptParts.join('\n');
 
             document.getElementById('output').textContent = mergedPrompt;
             document.querySelector('.output-group').style.display = 'block';
