@@ -236,13 +236,10 @@
         <div class="form-group">
             <label for="template">Prompt Template:</label>
             <textarea id="template" placeholder="Enter your prompt template here...">
-<|endoftext|>You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions.
+<s>[INST] {prompt} [/INST]</s>
+This model also supports the following FIM tokens:
 
-### Instruction
-{instruction}
-
-### Response
-{response}
+[PREFIX], [SUFFIX]
             </textarea>
         </div>
         <button class="btn" id="load-template-btn">Load Template</button>
@@ -270,14 +267,16 @@
          * - {placeholder}
          * - <|placeholder|>
          * - ### Placeholder
+         * - [placeholder]
          * @param {string} template - The prompt template string.
          * @returns {Array} - Array of unique placeholder names.
          */
         function parseTemplate(template) {
             const placeholderPatterns = [
-                /{(\w+)}/g,            // Matches {placeholder}
-                /<\|(\w+)\|>/g,        // Matches <|placeholder|>
-                /###\s*(\w+)/g         // Matches ### Placeholder
+                /\{(\w+)\}/g,            // Matches {placeholder}
+                /<\|(\w+)\|>/g,          // Matches <|placeholder|>
+                /###\s*(\w+)/g,          // Matches ### Placeholder
+                /\[(\w+)\]/g              // Matches [placeholder]
                 // Add more patterns here if needed
             ];
 
@@ -286,7 +285,7 @@
             placeholderPatterns.forEach(pattern => {
                 let match;
                 while ((match = pattern.exec(template)) !== null) {
-                    placeholders.add(match[1].toLowerCase());
+                    placeholders.add(match[1]);
                 }
             });
 
@@ -311,7 +310,7 @@
 
                 let input;
                 // Determine input type based on placeholder name
-                if (placeholder.toLowerCase().includes('instruction') || placeholder.toLowerCase().includes('response')) {
+                if (placeholder.toLowerCase().includes('instruction') || placeholder.toLowerCase().includes('response') || placeholder.toLowerCase().includes('prompt')) {
                     input = document.createElement('textarea');
                     input.rows = 4;
                     input.placeholder = `Enter ${placeholder} here...`;
@@ -355,7 +354,7 @@
 
             const placeholders = parseTemplate(template);
             if (placeholders.length === 0) {
-                alert('No placeholders found in the template. Please ensure placeholders are in {placeholder}, <|placeholder|>, or ### Placeholder formats.');
+                alert('No placeholders found in the template. Please ensure placeholders are in {placeholder}, <|placeholder|>, ### Placeholder, or [placeholder] formats.');
                 document.getElementById('merge-btn').style.display = 'none';
             } else {
                 generateInputFields(placeholders);
@@ -374,23 +373,28 @@
             const placeholders = parseTemplate(template);
             let mergedPrompt = template;
 
-            placeholders.forEach(placeholder => {
+            for (let placeholder of placeholders) {
                 const inputElement = document.getElementById(placeholder);
                 if (inputElement) {
                     const value = inputElement.value.trim();
                     if (!value) {
                         alert(`Please enter a value for "${placeholder}".`);
-                        throw new Error(`Missing value for "${placeholder}".`);
+                        return;
                     }
-                    // Replace all instances of the placeholder with the input value
-                    const regexCurly = new RegExp(`{${placeholder}}`, 'g');
+
+                    // Create regex patterns for each placeholder format
+                    const regexCurly = new RegExp(`\\{${placeholder}\\}`, 'g');
                     const regexAngle = new RegExp(`<\\|${placeholder}\\|>`, 'g');
                     const regexHash = new RegExp(`###\\s*${placeholder}`, 'g');
+                    const regexSquare = new RegExp(`\\[${placeholder}\\]`, 'g');
+
+                    // Replace all instances of each placeholder format with the input value
                     mergedPrompt = mergedPrompt.replace(regexCurly, value);
                     mergedPrompt = mergedPrompt.replace(regexAngle, value);
                     mergedPrompt = mergedPrompt.replace(regexHash, value);
+                    mergedPrompt = mergedPrompt.replace(regexSquare, value);
                 }
-            });
+            }
 
             document.getElementById('output').textContent = mergedPrompt;
             document.querySelector('.output-group').style.display = 'block';
