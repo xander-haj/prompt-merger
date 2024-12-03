@@ -236,9 +236,13 @@
         <div class="form-group">
             <label for="template">Prompt Template:</label>
             <textarea id="template" placeholder="Enter your prompt template here...">
-<s>[PREFIX] {prefix} [/PREFIX]
-[INST] {instruction} [/INST]
-[SUFFIX] {suffix} [/SUFFIX]</s>
+<|endoftext|>You are an exceptionally intelligent coding assistant that consistently delivers accurate and reliable responses to user instructions.
+
+### Instruction
+{instruction}
+
+### Response
+{response}
             </textarea>
         </div>
         <button class="btn" id="load-template-btn">Load Template</button>
@@ -260,20 +264,39 @@
             document.body.classList.toggle('light-mode');
         });
 
-        // Function to parse placeholders in the template
+        /**
+         * Function to parse placeholders in the template.
+         * Supports multiple placeholder formats:
+         * - {placeholder}
+         * - <|placeholder|>
+         * - ### Placeholder
+         * @param {string} template - The prompt template string.
+         * @returns {Array} - Array of unique placeholder names.
+         */
         function parseTemplate(template) {
-            const placeholderRegex = /{(\w+)}/g;
-            let match;
+            const placeholderPatterns = [
+                /{(\w+)}/g,            // Matches {placeholder}
+                /<\|(\w+)\|>/g,        // Matches <|placeholder|>
+                /###\s*(\w+)/g         // Matches ### Placeholder
+                // Add more patterns here if needed
+            ];
+
             const placeholders = new Set();
 
-            while ((match = placeholderRegex.exec(template)) !== null) {
-                placeholders.add(match[1]);
-            }
+            placeholderPatterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(template)) !== null) {
+                    placeholders.add(match[1].toLowerCase());
+                }
+            });
 
             return Array.from(placeholders);
         }
 
-        // Function to generate input fields based on placeholders
+        /**
+         * Function to generate input fields based on detected placeholders.
+         * @param {Array} placeholders - Array of placeholder names.
+         */
         function generateInputFields(placeholders) {
             const form = document.getElementById('input-form');
             form.innerHTML = ''; // Clear existing fields
@@ -287,8 +310,8 @@
                 label.textContent = `${capitalizeFirstLetter(placeholder)}:`;
 
                 let input;
-                if (placeholder === 'template') {
-                    // If there's a 'template' placeholder, use textarea
+                // Determine input type based on placeholder name
+                if (placeholder.toLowerCase().includes('instruction') || placeholder.toLowerCase().includes('response')) {
                     input = document.createElement('textarea');
                     input.rows = 4;
                     input.placeholder = `Enter ${placeholder} here...`;
@@ -313,7 +336,11 @@
             }
         }
 
-        // Helper function to capitalize first letter
+        /**
+         * Helper function to capitalize the first letter of a string.
+         * @param {string} string - The input string.
+         * @returns {string} - String with the first letter capitalized.
+         */
         function capitalizeFirstLetter(string) {
             return string.charAt(0).toUpperCase() + string.slice(1);
         }
@@ -327,8 +354,13 @@
             }
 
             const placeholders = parseTemplate(template);
-            generateInputFields(placeholders);
-            document.querySelector('.output-group').style.display = 'none';
+            if (placeholders.length === 0) {
+                alert('No placeholders found in the template. Please ensure placeholders are in {placeholder}, <|placeholder|>, or ### Placeholder formats.');
+                document.getElementById('merge-btn').style.display = 'none';
+            } else {
+                generateInputFields(placeholders);
+                document.querySelector('.output-group').style.display = 'none';
+            }
         });
 
         // Merge Button Event
@@ -343,9 +375,21 @@
             let mergedPrompt = template;
 
             placeholders.forEach(placeholder => {
-                const value = document.getElementById(placeholder).value.trim();
-                const regex = new RegExp(`{${placeholder}}`, 'g');
-                mergedPrompt = mergedPrompt.replace(regex, value);
+                const inputElement = document.getElementById(placeholder);
+                if (inputElement) {
+                    const value = inputElement.value.trim();
+                    if (!value) {
+                        alert(`Please enter a value for "${placeholder}".`);
+                        throw new Error(`Missing value for "${placeholder}".`);
+                    }
+                    // Replace all instances of the placeholder with the input value
+                    const regexCurly = new RegExp(`{${placeholder}}`, 'g');
+                    const regexAngle = new RegExp(`<\\|${placeholder}\\|>`, 'g');
+                    const regexHash = new RegExp(`###\\s*${placeholder}`, 'g');
+                    mergedPrompt = mergedPrompt.replace(regexCurly, value);
+                    mergedPrompt = mergedPrompt.replace(regexAngle, value);
+                    mergedPrompt = mergedPrompt.replace(regexHash, value);
+                }
             });
 
             document.getElementById('output').textContent = mergedPrompt;
@@ -359,7 +403,7 @@
                 navigator.clipboard.writeText(output).then(() => {
                     alert('Prompt copied to clipboard!');
                 }).catch(err => {
-                    alert('Failed to copy: ', err);
+                    alert('Failed to copy: ' + err);
                 });
             } else {
                 alert('Nothing to copy!');
@@ -370,7 +414,9 @@
         window.addEventListener('DOMContentLoaded', () => {
             const template = document.getElementById('template').value.trim();
             const placeholders = parseTemplate(template);
-            generateInputFields(placeholders);
+            if (placeholders.length > 0) {
+                generateInputFields(placeholders);
+            }
         });
     </script>
 </body>
