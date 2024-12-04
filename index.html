@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Customizable Prompt Formatter Tool</title>
+    <!-- Include SortableJS via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js" integrity="sha512-Fhjb7KyjOK31cKwNKEhRX7JBGq17E7kWfBKEQb4Q8UHCsLLfzCqg+3pvmfUn5BIRhUd9iYmCZdhAzFx0Xk5TxA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         /* CSS Reset */
         *, *::before, *::after {
@@ -31,6 +33,7 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             max-width: 800px;
             width: 100%;
+            overflow: hidden;
         }
 
         h1 {
@@ -138,30 +141,46 @@
 
         /* Form Styles */
         .form-group {
-            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #2c2c2c;
+            border-radius: 8px;
+            cursor: grab;
         }
 
-        label {
-            display: block;
-            margin-bottom: 8px;
+        .form-group.dragging {
+            opacity: 0.5;
+        }
+
+        .form-group label {
+            flex: 0 0 150px;
+            margin-right: 10px;
             font-weight: bold;
         }
 
-        textarea, input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border-radius: 8px;
+        .form-group input[type="text"], .form-group textarea {
+            flex: 1;
+            padding: 8px;
+            border-radius: 5px;
             border: none;
             resize: vertical;
-            background-color: #2c2c2c;
+            background-color: #3a3a3a;
             color: #ffffff;
             font-size: 1em;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        textarea:focus, input[type="text"]:focus {
+        .form-group input[type="text"]:focus, .form-group textarea:focus {
             outline: none;
-            background-color: #3a3a3a;
+            background-color: #4a4a4a;
+        }
+
+        .form-group .toggle-checkbox {
+            margin-left: 10px;
+            transform: scale(1.2);
+            cursor: pointer;
         }
 
         .btn, .copy-btn {
@@ -185,6 +204,7 @@
         .copy-btn {
             background-color: #03dac6;
             color: #000000;
+            margin-left: 10px;
         }
 
         .copy-btn:hover {
@@ -206,6 +226,7 @@
             white-space: pre-wrap;
             word-wrap: break-word;
             margin-top: 10px;
+            overflow: auto;
         }
 
         /* Responsive Design */
@@ -220,6 +241,22 @@
 
             .btn, .copy-btn {
                 width: 100%;
+                margin-left: 0;
+            }
+
+            .form-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .form-group label {
+                margin-bottom: 5px;
+                flex: none;
+            }
+
+            .form-group .toggle-checkbox {
+                margin-left: 0;
+                margin-top: 5px;
             }
         }
     </style>
@@ -249,11 +286,13 @@ Sure, how can I assist you today?
         <form id="input-form">
             <!-- Dynamic Input Fields Will Appear Here -->
         </form>
-        <button class="btn" id="merge-btn" style="display:none;">Merge Prompt</button>
+        <div style="display: flex; justify-content: flex-start;">
+            <button class="btn" id="merge-btn" style="display:none;">Merge Prompt</button>
+            <button class="copy-btn" id="copy-btn" style="display:none;">Copy to Clipboard</button>
+        </div>
         <div class="output-group" style="display:none;">
             <label for="output">Output:</label>
             <div class="output-box" id="output" readonly></div>
-            <button class="copy-btn" id="copy-btn">Copy to Clipboard</button>
         </div>
     </div>
 
@@ -262,11 +301,11 @@ Sure, how can I assist you today?
         const toggleSwitch = document.getElementById('mode-toggle');
         toggleSwitch.addEventListener('change', () => {
             document.body.classList.toggle('light-mode');
-            // Save the preference in localStorage (optional enhancement)
+            // Save the preference in localStorage
             localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
         });
 
-        // Load theme preference on page load (optional enhancement)
+        // Load theme preference on page load
         window.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'light') {
@@ -280,8 +319,8 @@ Sure, how can I assist you today?
         });
 
         /**
-         * Predefined Order for Placeholders
-         * Adjust this array based on the desired order of output.
+         * Predefined Order for Output
+         * Adjust this array based on the desired order of output sections.
          */
         const predefinedOrder = ['PREFIX', 'INST', 'SUFFIX'];
 
@@ -301,15 +340,15 @@ Sure, how can I assist you today?
         const predefinedSections = [
             {
                 marker: /^<\|endoftext\|>/, // Regex to match <|endoftext|> at the start of the line
-                placeholder: 'endoftext'
+                placeholder: 'PREFIX'
             },
             {
                 marker: /^###\s*Instruction/, // Regex to match ### Instruction
-                placeholder: 'Instruction'
+                placeholder: 'INST'
             },
             {
                 marker: /^###\s*Response/, // Regex to match ### Response
-                placeholder: 'Response'
+                placeholder: 'SUFFIX'
             }
         ];
 
@@ -337,8 +376,8 @@ Sure, how can I assist you today?
                         // Check if the line already contains a placeholder
                         const placeholderRegex = new RegExp(`\\{${section.placeholder}\\}`);
                         if (!placeholderRegex.test(line)) {
-                            if (section.placeholder === 'endoftext') {
-                                // Replace content after <|endoftext|> with {endoftext}
+                            if (section.placeholder === 'PREFIX') {
+                                // Replace content after <|endoftext|> with {PREFIX}
                                 const parts = line.split('>');
                                 if (parts.length > 1) {
                                     modifiedTemplate += `${parts[0]}>${'{'+section.placeholder+'}'}` + '\n';
@@ -377,6 +416,7 @@ Sure, how can I assist you today?
                 alert('No predefined sections found in the template. The entire template will be treated as fixed.');
                 // Treat the entire template as fixed and display it as output
                 document.getElementById('merge-btn').style.display = 'block';
+                document.getElementById('copy-btn').style.display = 'block';
                 document.querySelector('.output-group').style.display = 'none';
             }
         }
@@ -460,6 +500,7 @@ Sure, how can I assist you today?
             placeholders.forEach(placeholder => {
                 const div = document.createElement('div');
                 div.className = 'form-group';
+                div.setAttribute('data-placeholder', placeholder);
 
                 const label = document.createElement('label');
                 label.setAttribute('for', placeholder);
@@ -486,16 +527,37 @@ Sure, how can I assist you today?
                 input.id = placeholder;
                 input.name = placeholder;
 
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'toggle-checkbox';
+                checkbox.checked = true; // Default to checked
+                checkbox.setAttribute('aria-label', `Include ${placeholder} in merge`);
+
                 div.appendChild(label);
                 div.appendChild(input);
+                div.appendChild(checkbox);
                 form.appendChild(div);
             });
 
             if (placeholders.length > 0) {
-                document.getElementById('merge-btn').style.display = 'block';
+                document.getElementById('merge-btn').style.display = 'inline-block';
+                document.getElementById('copy-btn').style.display = 'inline-block';
+                initializeSortable();
             } else {
                 document.getElementById('merge-btn').style.display = 'none';
+                document.getElementById('copy-btn').style.display = 'none';
             }
+        }
+
+        /**
+         * Function to initialize SortableJS for the input form.
+         */
+        function initializeSortable() {
+            const sortable = Sortable.create(document.getElementById('input-form'), {
+                animation: 150,
+                handle: '.form-group',
+                ghostClass: 'dragging',
+            });
         }
 
         /**
@@ -529,11 +591,14 @@ Sure, how can I assist you today?
                 return;
             }
 
-            // Create a mapping of placeholders to user inputs
+            // Create a mapping of placeholders to user inputs based on checked boxes
             const userInputs = {};
-            placeholders.forEach(placeholder => {
-                const inputElement = document.getElementById(placeholder);
-                if (inputElement) {
+            const formGroups = document.querySelectorAll('.form-group');
+            formGroups.forEach(group => {
+                const placeholder = group.getAttribute('data-placeholder');
+                const checkbox = group.querySelector('.toggle-checkbox');
+                if (checkbox.checked) {
+                    const inputElement = group.querySelector('input[type="text"], textarea');
                     const userInput = inputElement.value.trim();
                     if (!userInput) {
                         alert(`Please enter a value for "${placeholder}".`);
@@ -543,7 +608,7 @@ Sure, how can I assist you today?
                 }
             });
 
-            // Assemble the merged output in the predefined order
+            // Assemble the merged output in the user-defined order
             const mergedOutputParts = [];
 
             predefinedOrder.forEach(placeholder => {
