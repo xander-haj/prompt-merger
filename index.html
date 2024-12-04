@@ -160,13 +160,14 @@
         }
 
         .form-group .handle {
-            width: 20px;
+            width: 30px;
             margin-right: 10px;
             cursor: grab;
             display: flex;
             align-items: center;
             justify-content: center;
             user-select: none;
+            flex-shrink: 0;
         }
 
         .form-group .handle::before {
@@ -527,10 +528,12 @@ Sure, how can I assist you today?
                 div.className = 'form-group';
                 div.setAttribute('data-placeholder', placeholder);
 
-                // Create drag handle
-                const handle = document.createElement('span');
+                // Create drag handle as a button
+                const handle = document.createElement('button');
                 handle.className = 'handle';
+                handle.type = 'button';
                 handle.setAttribute('aria-label', 'Drag to reorder');
+                handle.setAttribute('title', 'Drag to reorder');
 
                 const label = document.createElement('label');
                 label.setAttribute('for', placeholder);
@@ -584,10 +587,13 @@ Sure, how can I assist you today?
          * Function to initialize SortableJS for the input form.
          */
         function initializeSortable() {
-            const sortable = Sortable.create(document.getElementById('input-form'), {
+            Sortable.create(document.getElementById('input-form'), {
                 animation: 150,
-                handle: '.handle',
+                handle: '.handle', // Only the handle is draggable
                 ghostClass: 'dragging',
+                onEnd: function (/**Event*/evt) {
+                    // Optional: You can perform actions after reordering here
+                },
             });
         }
 
